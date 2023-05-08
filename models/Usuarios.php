@@ -42,6 +42,7 @@ class Usuarios extends \yii\db\ActiveRecord implements \yii\web\IdentityInterfac
             [['usu_token'], 'string'],
             [['usu_documento', 'usu_nombre', 'usu_apellido', 'usu_mail', 'usu_clave', 'usu_telefono'], 'string', 'max' => 255],
             [['usu_activo', 'usu_habilitado'], 'string', 'max' => 1],
+            ['usu_token', 'unique'],
         ];
     }
 
@@ -93,7 +94,12 @@ class Usuarios extends \yii\db\ActiveRecord implements \yii\web\IdentityInterfac
     // Esta funcion no esta hecha; Retorna los tokens de los admins
     public static function getAdminTokens()
     {
-        return []; // TODO: esta parte no esta hecha
+        return array_map(function ($usu){ return $usu->usu_token; }, static::findAll(['usu_tipo_usuario' => 1, 'usu_activo' => 'S']));
+    }
+
+    public static function checkIfAdmin($request, $modelClass)
+    {
+        return in_array($request->headers['Authorization'], array_map(function ($token){ return 'Bearer ' . $token; }, Usuarios::getAdminTokens()));
     }
 
     // Retorna true si la POST request tiene un token valido
@@ -104,7 +110,9 @@ class Usuarios extends \yii\db\ActiveRecord implements \yii\web\IdentityInterfac
         $user = Usuarios::findIdentity($id);
         if (!isset($user))
             return false;
-        if ($request->headers['Authorization'] !== 'Bearer ' . $user->getAuthKey() && !in_array($request->headers['Authorization'], array_map(function ($token){ return 'Bearer' . $token; }, Usuarios::getAdminTokens())))
+        if ($user->usu_activo == 'N')
+            return false;
+        if ($request->headers['Authorization'] !== 'Bearer ' . $user->getAuthKey() && !in_array($request->headers['Authorization'], array_map(function ($token){ return 'Bearer ' . $token; }, Usuarios::getAdminTokens())))
             return false;
         return true;
     }
@@ -119,8 +127,46 @@ class Usuarios extends \yii\db\ActiveRecord implements \yii\web\IdentityInterfac
         $user = Usuarios::findIdentity($identity->$nombre_id);
         if (!isset($user))
             return false;
+        if ($user->usu_activo == 'N')
+            return false;
         if ($request->headers['Authorization'] !== 'Bearer ' . $user->getAuthKey() && !in_array($request->headers['Authorization'], array_map(function ($token){ return 'Bearer' . $token; }, Usuarios::getAdminTokens())))
             return false;
         return true;
     }
+
+    public static function bajaUsuario($usu_id, $motivoBaja)
+    {
+        $modeloViejo = null;
+        $modeloNuevo = null;
+        $nombreTabla = Usuarios::tableName();
+        
+        //$modelUsuario = Usuarios::findIdentity($usu_id);
+        $modelUsuario = Usuarios::find()->where(['usu_id'=>$usu_id])->one();
+        $modeloViejo = json_encode($modelUsuario->attributes);
+
+
+        // if(isset($modelUsuario->attributes) && !empty($modelUsuario->attributes)){
+        //     return false;
+        // }else{
+        
+        $modelUsuario->usu_habilitado = "N"; // modifico el atributo usu_habilitado en la base de datos
+        $modelUsuario->save(); // update
+
+        $modeloNuevo = json_encode($modelUsuario->attributes);
+
+ 
+        $id_logAbm = LogAbm::nuevoLog($nombreTabla,2,$modeloViejo,$modeloNuevo,$motivoBaja);
+        LogAccion::nuevoLog("Baja usuario","ID Usuario: $usu_id \nMotivo baja:".$motivoBaja, $id_logAbm);
+        return true; 
+
+        // }
+    }
+
+    public static function obtenerUsuarioshabilitados(){
+        $sql = "SELECT usu_id, usu_documento, usu_nombre, usu_apellido, usu_mail, usu_telefono FROM usuarios WHERE usu_habilitado = 'S'";
+        $usuarios = Yii::$app->db->createCommand($sql)->queryAll();
+        return $usuarios;
+    }
+
+
 }
