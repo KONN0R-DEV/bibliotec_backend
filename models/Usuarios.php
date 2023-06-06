@@ -257,5 +257,14 @@ class Usuarios extends \yii\db\ActiveRecord implements \yii\web\IdentityInterfac
 		}
 	}
 
-    
+    public static function esAdmin($idUsuario)
+    {
+        $model = Usuarios::find()->where(['usu_id'=>$idUsuario])->one();
+        if($model->usu_tipo_usuario == 1)
+        {
+            return "S";
+        }
+        return "N";
+    }
+
 }

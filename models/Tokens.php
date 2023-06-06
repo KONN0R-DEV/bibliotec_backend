@@ -97,4 +97,31 @@ class Tokens extends \yii\db\ActiveRecord
         }
     }
 
+    public static function verificarEstadoAdmin()
+    {
+        $estadoToken = Tokens::verificarToken($_GET['token']);
+        if(is_numeric($estadoToken))
+        {
+            $idUsuario = $estadoToken;
+            $esAdmin = Usuarios::esAdmin($idUsuario);
+            if($esAdmin == "S")
+            {
+                return $idUsuario;
+            }else{
+                return array("code"=>103,"msg"=>"El usuario no tiene permiso para poder ver esta seccion.");
+            }
+        }else{
+            switch($estadoToken)
+            {
+                case "NE":
+                    $respuesta = array("code"=>102,"msg"=>"No existe o es incorrecto el token enviado.");
+                break;
+                case "EX":
+                    $respuesta = array("code"=>101,"msg"=>"El token ya fue expirado.");
+                break;
+            }
+            return $respuesta;
+        }
+    }
+
 }
