@@ -17,8 +17,12 @@ class ReportesController extends \yii\web\Controller
             if(is_numeric($verificarToken))
             {
                 $reportes = array();
-                array_push($reportes,['idReporte'=>"CANTLIB","nombre"=>"Cantidad de libros disponibles"]);
-                return json_encode(array("code"=>104,"msg"=>"Obtenido con exito","datos"=>array("")));
+                array_push($reportes,['idReporte'=>"CANTLIBDIS","nombre"=>"Obtener libros disponibles"]);
+                array_push($reportes,['idReporte'=>"CANTLIBPRN","nombre"=>"Obtener libros prestados ahora"]);
+                array_push($reportes,['idReporte'=>"CANTLIBPRV","nombre"=>"Obtener libros prestados por tiempo"]);
+                array_push($reportes,['idReporte'=>"TOPLIBPEDV","nombre"=>"Top de los libros mas pedidos"]);
+                array_push($reportes,['idReporte'=>"TOPCATPEDV","nombre"=>"Top de las categorias mas pedidas"]);
+                return json_encode(array("code"=>104,"msg"=>"Obtenido con exito","datos"=>array("reportes"=>$reportes)));
             }else{
                 return json_encode($verificarToken);
             }
