@@ -7,6 +7,8 @@ use app\models\LibrosCategorias;
 use app\models\Reservas;
 use app\models\Tokens;
 use app\models\Usuarios;
+use app\models\LogAbm;
+use app\models\LogAccion;
 
 class LibrosController extends \yii\web\Controller
 {
@@ -168,18 +170,21 @@ class LibrosController extends \yii\web\Controller
         return json_encode(array("codigo" => 0, "mensaje" => "", "data" => $listadoLibros));
     }
 
-    public function generarEstrucutraLibros($libros)
+    public static function generarEstrucutraLibros($libros, $esFavoritos = "N")
     {
         $array = array();
         foreach($libros as $libro)
         {
             $index = null;
+            $index['id'] = $libro['lib_id'];
+            $index['stock'] = $libro['lib_stock'];
             $index['isbn'] = $libro['lib_isbn'];
             $index['titulo'] = $libro['lib_titulo'];
             $index['imagen'] = $libro['lib_imagen'];
             $index['descripcion'] = $libro['lib_descripcion'];
             $index['autores'] = $libro['lib_autores'];
             $index['edicion'] = $libro['lib_edicion'];
+            $index['novedades'] = $libro['lib_novedades'];
             
             $fechaLanzamiento = ""; 
             if(!empty($libro['lib_fecha_lanzamiento']))
@@ -191,7 +196,7 @@ class LibrosController extends \yii\web\Controller
             $index['idioma'] = $libro['lib_idioma'];
             $index['puntuacion'] = $libro['lib_puntuacion'];
             $vigente = "Si";
-            if($libro['lib_vigencia']=="N")
+            if($libro['lib_vigente']=="N")
             {
                 $vigente = "No";
             }
@@ -206,6 +211,10 @@ class LibrosController extends \yii\web\Controller
                 array_push($arrayCategorias,$indexCat);
             }
             $index['categorias']  = $arrayCategorias;
+            if($esFavoritos == "S")
+            {
+                $index['fav_id'] = $libro['fav_id'];
+            }
             array_push($array,$index);
         }
         return $array;
@@ -242,6 +251,61 @@ class LibrosController extends \yii\web\Controller
             }
         }
         return $respuesta;
+    }
+
+    public function actionObtenerLibro()
+    {
+        if(!isset($_GET['isbn']))
+            return json_encode(['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'no se envio isbn de libro']);
+
+        $isbn = $_GET['isbn'];
+
+        $sql = "SELECT *
+                FROM libros
+                WHERE lib_isbn = $isbn";
+        $libro = \Yii::$app->db->createCommand($sql)->queryOne();  
+        if ($libro == null)
+            return json_encode(['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe libro con el isbn especificado']);
+        
+        return json_encode(["error" => false, "libro" => $libro]);
+    }
+
+
+    public function actionDelete(){
+
+        if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $id = $this->request->queryParams['id'];
+
+            if (!isset($id) || empty($id))
+                return json_encode(array("codigo"=>2));
+
+            // SOLO UN ADMINISTRADOR PUEDE ELIMINAR UN LIBRO
+            if (!Usuarios::checkIfAdmin($this->request, $this->modelClass))
+                return json_encode(array("codigo"=>3));
+            
+            $libro = Libros::findOne(['lib_id' => $id]);
+            if ($libro == null)
+                return json_encode(array("codigo"=>4));
+            if ($libro->lib_vigente == "N")
+                return json_encode(array("codigo"=>9));
+            
+        
+            $libroModeloViejo = null;
+            $libroModeloNuevo = null;
+            $libroModeloViejo = json_encode($libro->attributes);
+            $libro->lib_vigente = "N";
+            $libro->save();
+            $libroModeloNuevo = json_encode($libro->attributes);
+            
+            $id_admin = Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id;
+
+            $id_logAbm = LogAbm::nuevoLog(Libros::tableName(),3,$libroModeloViejo,$libroModeloNuevo,"Baja libro", $id_admin);
+            LogAccion::nuevoLog("Baja libro","Baja libro con id=".$id, $id_logAbm);
+
+            return json_encode(array("codigo"=>1));       
+        }else{
+            return json_encode(array("codigo"=>5));
+        }
     }
 
 
