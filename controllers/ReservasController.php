@@ -9,6 +9,7 @@ use app\models\LogAccion;
 use app\models\Tokens;
 use Yii;
 use yii\web\ForbiddenHttpException;
+use app\models\Libros;
 
 class ReservasController extends \yii\rest\ActiveController
 {
@@ -137,6 +138,102 @@ class ReservasController extends \yii\rest\ActiveController
         }
     }
 
+    /**
+     * Retorna las reservas de un usuario
+     * */
+    public function actionObtener()
+    {
+        if (!isset($_GET['id']))
+            return ['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'id de usuario es necesaria'];
+        $id = $_GET['id'];
+        $reservas = Reservas::findAll(['resv_usu_id' => $id]);
+        if (count($reservas) == 0)
+            return ['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe reserva para el id especificado'];
+        
+
+        // Recorrer las reservas y Agregarle el isbn
+        $array = array();
+        foreach($reservas as $reserva){
+            $libro = Libros::findOne(['lib_id' => $reserva['resv_lib_id']]);
+            $index = null;
+            $index['resv_id'] = $reserva['resv_id'];
+            $index['resv_usu_id'] = $reserva['resv_usu_id'];
+            $index['resv_fecha_hora'] = $reserva['resv_fecha_hora'];
+            $index['resv_lib_id'] = $reserva['resv_lib_id'];
+            $index['resv_fecha_desde'] = $reserva['resv_fecha_desde'];
+            $index['resv_fecha_hasta'] = $reserva['resv_fecha_hasta'];
+            $index['resv_estado'] = $reserva['resv_estado'];
+            $index['isbn_libro'] = $libro->lib_isbn;
+
+            array_push($array,$index);
+        }
+
+        return ['error' => false, 'reserva' => $array];
+    }
+
+    /**
+     * Retorna las reservas de un libro
+     * */
+    public function actionObtenerDeLibro()
+    {
+        if (!isset($_GET['id']))
+            return ['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'id del libro es necesario'];
+        $id = $_GET['id'];
+        $reservas = Reservas::findAll(['resv_lib_id' => $id]);        
+
+        // Recorrer las reservas y Agregarle el isbn
+        $array = array();
+        foreach($reservas as $reserva){
+            $libro = Libros::findOne(['lib_id' => $reserva['resv_lib_id']]);
+            $index = $reserva->attributes;
+            $index['isbn_libro'] = $libro->lib_isbn;
+
+            array_push($array,$index);
+        }
+
+        return ['error' => false, 'reserva' => $array];
+    }
+
+
+    public function actionListado(){
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            
+            // COMPROBAR SI EL TOKEN ES DE UN USUARIO ADMIN
+            if (!Usuarios::checkIfAdmin($this->request, $this->modelClass)){
+                return [
+                    "codigo" => 3
+                ];
+            }
+            $reservas = Reservas::find()->all();
+
+            $arrayReservas = array();
+            foreach($reservas as $reserva){
+                $libro = Libros::findOne(['lib_id' => $reserva['resv_lib_id']]);
+                $index = null;
+                $index['resv_id'] = $reserva['resv_id'];
+                $index['resv_usu_id'] = $reserva['resv_usu_id'];
+                $index['resv_fecha_hora'] = $reserva['resv_fecha_hora'];
+                $index['resv_lib_id'] = $reserva['resv_lib_id'];
+                $index['resv_fecha_desde'] = $reserva['resv_fecha_desde'];
+                $index['resv_fecha_hasta'] = $reserva['resv_fecha_hasta'];
+                $index['resv_estado'] = $reserva['resv_estado'];
+                $index['isbn_libro'] = $libro->lib_isbn;
+
+                array_push($arrayReservas,$index);
+            }
+
+            //return json_encode(array("codigo"=>0, "data"=>$arrayReservas));
+            return [
+                "codigo" => 0,
+                "data" => $arrayReservas
+            ];
+
+        }else{
+            return [
+                "codigo" => 5
+            ];
+        }
+    }
 }
 
 ?>

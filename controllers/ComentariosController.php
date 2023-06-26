@@ -17,6 +17,45 @@ class ComentariosController extends \yii\rest\ActiveController
 
     public $modeloViejo;
 
+    public static function respuestas_de_comentario($comentario_id)
+    {
+        $respuestas = Comentarios::findAll(['comet_padre_id' => $comentario_id, 'comet_vigente' => 'S']);
+        for ($i = 0; $i < count($respuestas); $i++)
+        {
+            $respuestas[$i] = $respuestas[$i]->attributes;
+            $respuestas[$i]['respuestas'] = static::respuestas_de_comentario($respuestas[$i]['comet_id']);
+        }
+        return $respuestas;
+    }
+
+    // toma comentarios y un booleano, si $es_arbol = true entonces retorna la version de arbol de comentarios
+    // y sino, retorna los comentarios sin cambios
+    public static function hacer_arbol($comentarios, $es_arbol)
+    {
+        if ($es_arbol)
+        {
+            for ($i = 0; $i < count($comentarios); $i++)
+            {
+                $comentarios[$i] = $comentarios[$i]->attributes;
+                $comentarios[$i]['respuestas'] = static::respuestas_de_comentario($comentarios[$i]['comet_id']);
+            }
+        }
+        return $comentarios;
+    }
+
+    public static function agregar_a_array_de_comentario_usu_nombre_y_usu_documento($comentarios)
+    {
+        for ($i = 0; $i < count($comentarios); $i++)
+        {
+            if (!is_array($comentarios[$i]))
+                $comentarios[$i] = $comentarios[$i]->attributes;
+            $usuario = Usuarios::findOne(['usu_id' => $comentarios[$i]['comet_usu_id']]);
+            $comentarios[$i]['usu_nombre'] = $usuario->usu_nombre;
+            $comentarios[$i]['usu_documento'] = $usuario->usu_documento;
+        }
+        return $comentarios;
+    }
+
     public function actionVigentes()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -36,7 +75,10 @@ class ComentariosController extends \yii\rest\ActiveController
                     ->offset(($datos['page'] - 1) * $datos['per-page'])
                     ->limit($datos['per-page']);
             }
-            return $query->orderBy(['comet_fecha_hora' => SORT_DESC])->all();
+            $arbol = null;
+            if (isset($datos['arbol']))
+                $arbol = $datos['arbol'];
+            return static::agregar_a_array_de_comentario_usu_nombre_y_usu_documento(static::hacer_arbol($query->orderBy(['comet_fecha_hora' => SORT_DESC])->all(), $arbol));
         }
     }
 
@@ -55,7 +97,7 @@ class ComentariosController extends \yii\rest\ActiveController
             {
                 $nombre_id = $this->modelClass::getNombreUsuID();
                 $id = $this->request->queryParams['id'];
-                $this->modeloViejo = json_encode($this->modelClass::findIdentity($id));
+                $this->modeloViejo = $this->modelClass::findIdentity($id);
                 return true;
             }
             throw new ForbiddenHttpException("Bearer token no es valido para el usuario con esa id");
@@ -68,27 +110,40 @@ class ComentariosController extends \yii\rest\ActiveController
         $result = parent::afterAction($action, $result);
         if ($action->id == 'create')
         {
-            $nombre_id = $this->modelClass::getNombreUsuID();
-            $id = $this->request->bodyParams[$nombre_id];
+            //$nombre_id = $this->modelClass::getNombreUsuID();
+            //$id = $this->request->bodyParams[$nombre_id];
+            $id = $result[$this->modelClass::getNombreID()];
+            if ($this->modeloViejo != null)
+                $json_atributos = json_encode($this->modeloViejo->attributes);
+            else
+                $json_atributos = "";
     
             $modeloNuevo = json_encode($this->modelClass::findIdentity($id)->attributes);
-            $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 1, json_encode($this->modeloViejo->attributes), $modeloNuevo, "Creado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
+            $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 1, $json_atributos, $modeloNuevo, "Creado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
             LogAccion::nuevoLog("Creado " . $this->modelClass, $this->modelClass." creado con id: ".$id, $logAbm);
         }
         elseif ($action->id == 'update')
         {
             $id = $this->request->queryParams['id'];
+            if ($this->modeloViejo != null)
+                $json_atributos = json_encode($this->modeloViejo->attributes);
+            else
+                $json_atributos = "";
     
             $modeloNuevo = json_encode($this->modelClass::findIdentity($id)->attributes);
-            $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 2, json_encode($this->modeloViejo->attributes), $modeloNuevo, "Actualizado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
+            $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 2, $json_atributos, $modeloNuevo, "Actualizado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
             LogAccion::nuevoLog("Actualizado " . $this->modelClass, $this->modelClass." actualizado con id: ".$id, $logAbm);
         }
         elseif ($action->id == 'delete')
         {
             $id = $this->request->queryParams['id'];
-    
-            $modeloNuevo = json_encode($this->modelClass::findIdentity($id)->attributes);
-            $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 3, json_encode($this->modeloViejo->attributes), $modeloNuevo, "Eliminado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
+            if ($this->modeloViejo != null)
+                $json_atributos = json_encode($this->modeloViejo->attributes);
+            else
+                $json_atributos = "";
+            $modeloNuevo = json_encode([]);
+
+            $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 3, $json_atributos, $modeloNuevo, "Eliminado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
             LogAccion::nuevoLog("Eliminado " . $this->modelClass, $this->modelClass." eliminado con id: ".$id, $logAbm);
         }
         return $result;

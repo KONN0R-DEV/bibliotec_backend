@@ -7,6 +7,7 @@ use app\models\Libros;
 use app\models\Usuarios;
 use app\models\LogAbm;
 use app\models\LogAccion;
+use app\models\Tokens;
 use Yii;
 use yii\web\ForbiddenHttpException;
 
@@ -36,8 +37,9 @@ class FavoritosController extends \yii\rest\ActiveController
         $result = parent::afterAction($action, $result);
         if ($action->id == 'create')
         {
-            $nombre_id = $this->modelClass::getNombreUsuID();
-            $id = $this->request->bodyParams[$nombre_id];
+            // $nombre_id = $this->modelClass::getNombreUsuID();
+            // $id = $this->request->bodyParams[$nombre_id];
+            $id = $result[$this->modelClass::getNombreID()];
     
             $modeloNuevo = json_encode($this->modelClass::findIdentity($id)->attributes);
             $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 1, null, $modeloNuevo, "Creado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
@@ -46,14 +48,46 @@ class FavoritosController extends \yii\rest\ActiveController
         elseif ($action->id == 'delete')
         {
             $id = $this->request->queryParams['id'];
-    
-            $modeloNuevo = json_encode($this->modelClass::findIdentity($id)->attributes);
+            $modeloNuevo = json_encode([]);
+
             $logAbm = LogAbm::nuevoLog($this->modelClass::getTableSchema()->name, 1, null, $modeloNuevo, "Eliminado ".$this->modelClass, Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id);
             LogAccion::nuevoLog("Eliminado " . $this->modelClass, $this->modelClass." eliminado con id: ".$id, $logAbm);
         }
         return $result;
     }
 
-}
+    public function actionObtenerFavoritos()
+    {
+        //header('Access-Control-Allow-Origin: *');
+        //header("Content-type: application/json; charset=utf-8");
+        if(isset($_GET['token']) && !empty($_GET['token']))
+        {
+            $tokenUsuario = $_GET['token'];
+            $verificacionToken = Tokens::verificarToken($tokenUsuario);
+            if(is_numeric($verificacionToken))
+            {
+                /** $verificacionToken cuanod es numerico es el id del usuario */
+                $favoritos = Favoritos::obtenerLibrosFavoritos($verificacionToken);
+                $favoritos = LibrosController::generarEstrucutraLibros($favoritos, "S");
+                $respuesta = array("code"=>0,"msg"=>"Favoritos obtenidos con exito", "data"=>$favoritos);
+            }else{
+                switch($verificacionToken)
+                {
+                    case "NE":
+                        $respuesta = array("code"=>100,"msg"=>"No existe o es incorrecto el token enviado.");
+                    break;
+                    case "EX":
+                        $respuesta = array("code"=>101,"msg"=>"El token ya fue expirado.");
+                    break;//a
+                }
+            }
+            return $respuesta;
+        }else{
+            return array("code"=>100,"msg"=>"El token es obligatorio");
+        }
+    }
+
+
+}   
 
 ?>
