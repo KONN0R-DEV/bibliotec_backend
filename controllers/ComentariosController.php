@@ -43,9 +43,22 @@ class ComentariosController extends \yii\rest\ActiveController
         return $comentarios;
     }
 
+    public static function agregar_a_array_de_comentario_usu_nombre_y_usu_documento($comentarios)
+    {
+        for ($i = 0; $i < count($comentarios); $i++)
+        {
+            if (!is_array($comentarios[$i]))
+                $comentarios[$i] = $comentarios[$i]->attributes;
+            $usuario = Usuarios::findOne(['usu_id' => $comentarios[$i]['comet_usu_id']]);
+            $comentarios[$i]['usu_nombre'] = $usuario->usu_nombre;
+            $comentarios[$i]['usu_documento'] = $usuario->usu_documento;
+        }
+        return $comentarios;
+    }
+
     public function actionVigentes()
     {
-        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' || $_SERVER['REQUEST_METHOD'] === 'POST') {
             $datos = $this->request->bodyParams;
             if (!isset($datos['lib_id']))
                 return ['error' => true, 'error_tipo' => 0, 'error_mensaje' => 'Falta atributo lib_id'];
@@ -65,7 +78,7 @@ class ComentariosController extends \yii\rest\ActiveController
             $arbol = null;
             if (isset($datos['arbol']))
                 $arbol = $datos['arbol'];
-            return static::hacer_arbol($query->orderBy(['comet_fecha_hora' => SORT_DESC])->all(), $arbol);
+            return static::agregar_a_array_de_comentario_usu_nombre_y_usu_documento(static::hacer_arbol($query->orderBy(['comet_fecha_hora' => SORT_DESC])->all(), $arbol));
         }
     }
 
