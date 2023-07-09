@@ -40,8 +40,12 @@ class ReservasController extends \yii\rest\ActiveController
 
     public function actionMisReservas()
     {
-        $token = $_GET['token'];
-        $verificacionToken = Tokens::verificarToken($token);
+        $verificacionToken = 'NE';
+        if (isset($this->request->headers['Authorization']))
+        {
+            $token = explode(' ', $this->request->headers['Authorization'])[1];
+            $verificacionToken = Tokens::verificarToken($token);
+        }
         
         $respuesta = array("code"=>102,"msg"=>"Error a la hora de obtener las reservas");
 
@@ -49,6 +53,7 @@ class ReservasController extends \yii\rest\ActiveController
         {
             $idUsuario = $verificacionToken;
             $misReservas = Reservas::obtenerReservas($idUsuario);
+            static::actualizar_reservas_en_caso_de_ser_necesario($misReservas);
             $misReservas = ReservasController::generarEstructuraReservas($misReservas);
             $respuesta = array("code"=>0,"msg"=>"Reservas obtenidas correctamente","datos"=>array('reservas'=>$misReservas));
         }else{
@@ -147,6 +152,7 @@ class ReservasController extends \yii\rest\ActiveController
             return ['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'id de usuario es necesaria'];
         $id = $_GET['id'];
         $reservas = Reservas::findAll(['resv_usu_id' => $id]);
+        static::actualizar_reservas_en_caso_de_ser_necesario($reservas);
         if (count($reservas) == 0)
             return ['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe reserva para el id especificado'];
         
@@ -158,6 +164,7 @@ class ReservasController extends \yii\rest\ActiveController
             $index = null;
             $index['resv_id'] = $reserva['resv_id'];
             $index['resv_usu_id'] = $reserva['resv_usu_id'];
+            $index['usu_documento'] = Usuarios::findOne(['usu_id' => $reserva['resv_usu_id']])->usu_documento;
             $index['resv_fecha_hora'] = $reserva['resv_fecha_hora'];
             $index['resv_lib_id'] = $reserva['resv_lib_id'];
             $index['resv_fecha_desde'] = $reserva['resv_fecha_desde'];
@@ -179,7 +186,8 @@ class ReservasController extends \yii\rest\ActiveController
         if (!isset($_GET['id']))
             return ['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'id del libro es necesario'];
         $id = $_GET['id'];
-        $reservas = Reservas::findAll(['resv_lib_id' => $id]);        
+        $reservas = Reservas::findAll(['resv_lib_id' => $id]);    
+        static::actualizar_reservas_en_caso_de_ser_necesario($reservas);    
 
         // Recorrer las reservas y Agregarle el isbn
         $array = array();
@@ -187,11 +195,12 @@ class ReservasController extends \yii\rest\ActiveController
             $libro = Libros::findOne(['lib_id' => $reserva['resv_lib_id']]);
             $index = $reserva->attributes;
             $index['isbn_libro'] = $libro->lib_isbn;
+            $index['usu_documento'] = Usuarios::findOne(['usu_id' => $reserva['resv_usu_id']])->usu_documento;
 
             array_push($array,$index);
         }
 
-        return ['error' => false, 'reserva' => $array];
+        return ['error' => false, 'reserva' => $array, 'lib_stock' => Libros::findOne(['lib_id' => $id])->lib_stock];
     }
 
 
@@ -205,6 +214,7 @@ class ReservasController extends \yii\rest\ActiveController
                 ];
             }
             $reservas = Reservas::find()->all();
+            static::actualizar_reservas_en_caso_de_ser_necesario($reservas);
 
             $arrayReservas = array();
             foreach($reservas as $reserva){
@@ -212,6 +222,7 @@ class ReservasController extends \yii\rest\ActiveController
                 $index = null;
                 $index['resv_id'] = $reserva['resv_id'];
                 $index['resv_usu_id'] = $reserva['resv_usu_id'];
+                $index['usu_documento'] = Usuarios::findOne(['usu_id' => $reserva['resv_usu_id']])->usu_documento;
                 $index['resv_fecha_hora'] = $reserva['resv_fecha_hora'];
                 $index['resv_lib_id'] = $reserva['resv_lib_id'];
                 $index['resv_fecha_desde'] = $reserva['resv_fecha_desde'];
@@ -233,6 +244,12 @@ class ReservasController extends \yii\rest\ActiveController
                 "codigo" => 5
             ];
         }
+    }
+
+    // toma modelos de reservas y los actualiza (y los guarda) en caso de que hayan pasado la fecha de vencimiento
+    public static function actualizar_reservas_en_caso_de_ser_necesario($reservas) {
+        foreach($reservas as $reserva)
+            $reserva->actualizar_en_caso_de_ser_necesario();
     }
 }
 

@@ -33,7 +33,7 @@ class UsuariosController extends \yii\web\Controller
             if ($usuario == null)
                 return json_encode(array("codigo"=>4));
             
-            if ($usuario->usu_habilitado == "N")
+            if ($usuario->usu_activo == "N")
                 return json_encode(array("codigo"=>9));
             
             // DAR BAJA
@@ -41,7 +41,8 @@ class UsuariosController extends \yii\web\Controller
             $usuarioNuevo = null;
             $nombreTabla = Usuarios::tableName();
             $usuarioViejo = json_encode($usuario->attributes);
-            $usuario->usu_habilitado = "N"; // Se modifica el atributo usu_habilitado.
+            //$usuario->usu_habilitado = "N";
+            $usuario->usu_activo = "N";
             $usuario->save(); // Se guardan los nuevos cambios.
             $usuarioNuevo = json_encode($usuario->attributes);
             
@@ -143,7 +144,6 @@ class UsuariosController extends \yii\web\Controller
             if (!Usuarios::checkIfAdmin($this->request, $this->modelClass))
                 return json_encode(array("codigo"=>3));
             $usuarios = Usuarios::find()->all();
-            $usuarioshabilitados = Usuarios::findAll(['usu_habilitado' => 'S']);
 
             $arrayUsuarios = UsuariosController::generarEstructuraListado($usuarios);
             return json_encode(array("codigo"=>0, "data"=>$arrayUsuarios));
@@ -168,7 +168,6 @@ class UsuariosController extends \yii\web\Controller
             $index['activo'] = $usuario['usu_activo'];
             $index['tipo_usuario'] = $usuario['usu_tipo_usuario'];
             $index['habilitado'] = $usuario['usu_habilitado'];
-            // $index['token'] = $usuario['usu_token'];
 
             array_push($array,$index);
         }
@@ -232,7 +231,7 @@ class UsuariosController extends \yii\web\Controller
             $datos = $this->request->bodyParams;
 
             if (!Usuarios::checkIfAdmin($this->request, $this->modelClass))
-                return json_encode(array("codigo"=>2, 'mensaje' => 'Debe ser un usuario adminitrador'));
+                return json_encode(array("codigo"=>2, 'mensaje' => 'Token invalido'));
 
 
             if (!isset($datos['id']) || empty($datos['id']))
@@ -298,14 +297,14 @@ class UsuariosController extends \yii\web\Controller
                 }
             } 
             
-            if (isset($datos['activo'])){
-                if(empty($datos['activo'])){
-                    return json_encode(array("codigo"=>10, 'mensaje' => 'El atributo activo esta vacio'));
+            if (isset($datos['habilitado'])){
+                if(empty($datos['habilitado'])){
+                    return json_encode(array("codigo"=>10, 'mensaje' => 'El atributo habilitado esta vacio'));
                 }else{
-                    if (($datos['activo'] != 'S' && $datos['activo'] != 'N')){
-                        return json_encode(array("codigo"=>101, 'mensaje' => 'El atributo activo no cumple la especificacion'));
+                    if (($datos['habilitado'] != 'S' && $datos['habilitado'] != 'N')){
+                        return json_encode(array("codigo"=>101, 'mensaje' => 'El atributo habilitado no cumple la especificacion'));
                     }else{
-                        $usuario->usu_activo = $datos['activo'];
+                        $usuario->usu_habilitado = $datos['habilitado'];
                         $bandera = true;
                     }
                           
@@ -313,16 +312,12 @@ class UsuariosController extends \yii\web\Controller
             }
 
             if (isset($datos['tipo'])){
-                if(empty($datos['tipo'])){
-                    return json_encode(array("codigo"=>11, 'mensaje' => 'El atributo tipo esta vacio'));
+
+                if (($datos['tipo'] != 1 && $datos['tipo'] != 0)){
+                    return json_encode(array("codigo"=>111, 'mensaje' => 'El atributo tipo no cumple la especificacion'));
                 }else{
-                    if (($datos['tipo'] != 1 && $datos['tipo'] != 0)){
-                        return json_encode(array("codigo"=>111, 'mensaje' => 'El atributo tipo no cumple la especificacion'));
-                    }else{
-                        $usuario->usu_tipo_usuario = $datos['tipo'];
-                        $bandera = true;
-                    }
-                          
+                    $usuario->usu_tipo_usuario = $datos['tipo'];
+                    $bandera = true;
                 }
             } 
 
@@ -343,6 +338,39 @@ class UsuariosController extends \yii\web\Controller
             return json_encode(array("codigo"=>13, 'mensaje' => 'Se a modificado con exito'));      
         }else{
             return json_encode(array("codigo"=>14, 'mensaje' => 'El metodo no es el correcto'));   
+        }
+    }
+
+    public function actionActivar(){
+
+        if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            $id = $this->request->queryParams['id'];
+
+            if (!Usuarios::checkIfAdmin($this->request, $this->modelClass))
+                return json_encode(array("codigo"=>2, 'mensaje' => 'Token invalido'));
+
+
+            if (!isset($id) || empty($id))
+                return json_encode(array("codigo"=>3, 'mensaje' => 'El id es obligatorio'));
+
+            $usuario = Usuarios::findOne(['usu_id' => $id]);
+
+            if ($usuario == null)
+                return json_encode(array("codigo"=>4, 'mensaje' => 'Usuario no encontrado'));
+            if ($usuario->usu_activo == "S")
+                return json_encode(array("codigo"=>5, 'mensaje' => 'El usuario ya esta activado'));
+
+            $usuarioModeloViejo = json_encode($usuario->attributes);
+            $usuario->usu_activo = "S";
+            $usuario->save();
+            $usuarioModeloNuevo = json_encode($usuario->attributes);             
+            $usu_id_admin = Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id;
+            $id_logAbm = LogAbm::nuevoLog(Usuarios::tableName(),4,$usuarioModeloViejo,$usuarioModeloNuevo,"Activar usuario", $usu_id_admin);
+            LogAccion::nuevoLog("Activar usuario","Activar usuario con id=".$id, $id_logAbm);
+
+            return json_encode(array("codigo"=>6, 'mensaje' => 'Se a activado con exito'));      
+        }else{
+            return json_encode(array("codigo"=>7, 'mensaje' => 'El metodo no es el correcto'));   
         }
     }
 }

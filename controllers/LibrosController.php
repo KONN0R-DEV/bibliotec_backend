@@ -109,7 +109,7 @@ class LibrosController extends \yii\web\Controller
 
             if(!isset($datos['stock']) || empty($datos['stock']))
             {
-                return json_encode(array("codigo"=>101, "mensaje"=>"La URL del libro es obligatoria."));
+                return json_encode(array("codigo"=>101, "mensaje"=>"El stock del libro es obligatorio."));
             }else{
                 if(!is_numeric($datos['stock']))
                 {
@@ -222,9 +222,13 @@ class LibrosController extends \yii\web\Controller
 
     public function actionObtenerTodosLibros()
     {
-       
-        $token = $_GET['token'];
-        $verificacionToken = Tokens::verificarToken($token);
+        $verificacionToken = 'NE';
+        if (isset($this->request->headers['Authorization']))
+        {
+            $token = explode(' ', $this->request->headers['Authorization'])[1];
+            $verificacionToken = Tokens::verificarToken($token);
+        }
+        
         if(is_numeric($verificacionToken))
         {
             $idUsuario = $verificacionToken;
@@ -250,7 +254,7 @@ class LibrosController extends \yii\web\Controller
                 break;
             }
         }
-        return $respuesta;
+        return json_encode($respuesta);
     }
 
     public function actionObtenerLibro()
