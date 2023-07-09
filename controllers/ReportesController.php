@@ -31,4 +31,51 @@ class ReportesController extends \yii\web\Controller
         }
     }
 
+
+    public function actionEjecutarReporte() 
+    {
+        $reporte = $_POST['reporte'];
+        $datos = $_POST['datos'];
+        if(isset($_POST['token']) && !empty($_POST['token']))
+        {
+            $verificarToken = Tokens::verificarEstadoAdmin($_POST['token']);
+            if(is_numeric($verificarToken))
+            {
+                $respuesta = array();
+                switch($reporte)
+                {
+                    case "CANTLIBDIS": //Cantidad de libros disponibles
+                        $respuesta = ReportesController::cantidadLibrosDisponibles();
+                    break;
+                    case "CANTLIBPRN"://Cantidad e libros prestados hoy
+
+                    break;
+                    case "CANTLIBPRV"://Cantidad e libros prestados por fecha
+
+                    break;
+                    case "TOPLIBPEDV"://Top de los libros mas pedidos
+
+                    break;
+                    case "TOPCATPEDV"://Top de las categorias mas pedidas
+
+                    break;
+                    default:
+                        $respuesta['code'] = 100;
+                        $respuesta['msg'] = "El resporte enviado no existe.";
+                    break;
+                }
+                return json_encode($respuesta);
+            }else{
+                return json_encode($verificarToken);
+            }
+        }else{
+            return json_encode(array("code"=>100,"msg"=>"El token es oblgatorio"));
+        }
+       
+    }
+
+
+    public function cantidadLibrosDisponibles() {
+        
+    }
 }
