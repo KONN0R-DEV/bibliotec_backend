@@ -267,11 +267,12 @@ class LibrosController extends \yii\web\Controller
         $sql = "SELECT *
                 FROM libros
                 WHERE lib_isbn = $isbn";
-        $libro = \Yii::$app->db->createCommand($sql)->queryOne();  
+        $libro = \Yii::$app->db->createCommand($sql)->queryOne();          
+        $listadoLibros = LibrosController::generarEstrucutraLibros($libro);
         if ($libro == null)
             return json_encode(['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe libro con el isbn especificado']);
         
-        return json_encode(["error" => false, "libro" => $libro]);
+        return json_encode(["error" => false, "libro" => $listadoLibros]);
     }
 
     public function actionModificarLibro()
