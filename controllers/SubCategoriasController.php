@@ -69,11 +69,14 @@ class SubCategoriasController extends \yii\web\Controller
             $arraySubCategorias = array();
             foreach($subcategorias as $subcategoria)
             {
+                $categoria = Categorias::findOne(['cat_id' => $subcategoria['subcat_cat_id']]);
                 $index = null;
                 $index['id'] = $subcategoria['subcat_id'];
                 $index['id_categoria'] = $subcategoria['subcat_cat_id'];
                 $index['nombre'] = $subcategoria['subcat_nombre'];
                 $index['vigente'] = $subcategoria['subcat_vigente'];
+                $index['nombre_cat'] = $categoria->cat_nombre;
+
                 array_push($arraySubCategorias,$index);
             }
 
