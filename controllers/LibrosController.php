@@ -268,11 +268,26 @@ class LibrosController extends \yii\web\Controller
                 FROM libros
                 WHERE lib_isbn = $isbn";
         $libro = \Yii::$app->db->createCommand($sql)->queryOne();          
-        $listadoLibros = LibrosController::generarEstrucutraLibros($libro);
-        if ($libro == null)
-            return json_encode(['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe libro con el isbn especificado']);
         
-        return json_encode(["error" => false, "libro" => $listadoLibros]);
+        if ($libro == null)
+        {
+            return json_encode(['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe libro con el isbn especificado']);
+        }else{
+            $libro['categorias'] = array();
+            $categoriasLibros = LibrosCategorias::obtenerCategoriasSubCategorias($libro['lib_id']);
+            $arrayCategorias = array();
+            foreach($categoriasLibros as $cl)
+            {
+                $indexCat = null;
+                $indexCat['categoria'] = $cl['cat_nombre'];
+                $indexCat['subCategoria'] = $cl['subcat_nombre']; 
+                array_push($arrayCategorias,$indexCat);
+            }
+            array_push($libro['categorias'],$arrayCategorias);
+        }
+
+        
+        return json_encode(["error" => false, "libro" => $libro]);
     }
 
     public function actionModificarLibro()
