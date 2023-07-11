@@ -289,10 +289,12 @@ class LibrosController extends \yii\web\Controller
             foreach($subcategoriasLibros as $sbcl)
             {
                 $indexSubCat = null;
-                $indexCat['idSubCategoria'] = $sbcl['subcat_id']; 
-                $indexCat['subCategoria'] = $sbcl['subcat_nombre'];
+                $indexCat['id'] = $sbcl['subcat_id']; 
+                $indexCat['nombre'] = $sbcl['subcat_nombre'];
                 array_push($arraySubCategorias,$indexSubCat);
             } 
+            array_push($libro['subCategorias'],$arrayCategorias);
+
             array_push($libro['categorias'],$arrayCategorias);
         }
 
