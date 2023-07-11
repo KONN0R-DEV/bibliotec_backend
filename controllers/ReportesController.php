@@ -11,24 +11,24 @@ class ReportesController extends \yii\web\Controller
     public $enableCsrfValidation = false;
 
     public function actionObtenerListadoReportes()
-    {
-        if(isset($_GET['token']) && !empty($_GET['token']))
+    {   
+        $verificarToken = 'NE';
+        if (isset($this->request->headers['Authorization']))
         {
-            $verificarToken = Tokens::verificarEstadoAdmin($_GET['token']);
-            if(is_numeric($verificarToken))
-            {
-                $reportes = array();
-                array_push($reportes,['idReporte'=>"CANTLIBDIS","nombre"=>"Obtener libros disponibles"]);
-                array_push($reportes,['idReporte'=>"CANTLIBPRN","nombre"=>"Obtener libros prestados ahora"]);
-                array_push($reportes,['idReporte'=>"CANTLIBPRV","nombre"=>"Obtener libros prestados por tiempo"]);
-                array_push($reportes,['idReporte'=>"TOPLIBPEDV","nombre"=>"Top de los libros mas pedidos"]);
-                array_push($reportes,['idReporte'=>"TOPCATPEDV","nombre"=>"Top de las categorias mas pedidas"]);
-                return json_encode(array("code"=>104,"msg"=>"Obtenido con exito","datos"=>array("reportes"=>$reportes)));
-            }else{
-                return json_encode($verificarToken);
-            }
+            $token = explode(' ', $this->request->headers['Authorization'])[1];
+            $verificarToken = Tokens::verificarToken($token);
+        }
+        if(is_numeric($verificarToken))
+        {
+            $reportes = array();
+            array_push($reportes,['idReporte'=>"CANTLIBDIS","nombre"=>"Obtener libros disponibles"]);
+            array_push($reportes,['idReporte'=>"CANTLIBPRN","nombre"=>"Obtener libros prestados ahora"]);
+            array_push($reportes,['idReporte'=>"CANTLIBPRV","nombre"=>"Obtener libros prestados por tiempo"]);
+            array_push($reportes,['idReporte'=>"TOPLIBPEDV","nombre"=>"Top de los libros mas pedidos"]);
+            array_push($reportes,['idReporte'=>"TOPCATPEDV","nombre"=>"Top de las categorias mas pedidas"]);
+            return json_encode(array("code"=>104,"msg"=>"Obtenido con exito","datos"=>array("reportes"=>$reportes)));
         }else{
-            return json_encode(array("code"=>100,"msg"=>"El token es oblgatorio"));
+            return json_encode($verificarToken);
         }
     }
 
@@ -49,8 +49,8 @@ class ReportesController extends \yii\web\Controller
             switch($reporte)
             {
                 case "CANTLIBDIS": //Cantidad de libros disponibles
-                    $respuesta['code'] = 100;
-                    $respuesta['msg'] = "El resporte enviado no existe.";
+                    $respuesta['code'] = 0;
+                    $respuesta['msg'] = "Reporte obtenido con exito.";
                     $respuesta['data'] = ReportesController::cantidadLibrosDisponibles($datos);
                 break;
                 case "CANTLIBPRN"://Cantidad e libros prestados hoy
@@ -124,8 +124,8 @@ class ReportesController extends \yii\web\Controller
         $array = array();
         foreach($cantidaDisponible as $disponible){
             $index = null;
-            $index['libro'] = $disponible['lib_nombre'];
-            $index['disponible'] = $disponible['disponible'];
+            $index['libro'] = $disponible['lib_titulo'];
+            $index['disponible'] = $disponible['stock_actual'];
             array_push($array,$index);
         }
         return $array;

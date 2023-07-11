@@ -176,7 +176,7 @@ class Libros extends \yii\db\ActiveRecord
         return $libros;
     }
 
-    function obtenerCantidadDisponible() {
+    public static function obtenerCantidadDisponible() {
         /** LIBRO STOCK - RESERVAS CONFIRMADA EN EL MOMENTO */
         $sql = "SELECT lib_titulo,
                         lib_stock - (

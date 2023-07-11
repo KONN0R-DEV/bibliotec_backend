@@ -281,6 +281,8 @@ class LibrosController extends \yii\web\Controller
                 $indexCat = null;
                 $indexCat['categoria'] = $cl['cat_nombre'];
                 $indexCat['subCategoria'] = $cl['subcat_nombre']; 
+                $indexCat['idCategoria'] = $cl['cat_id']; 
+                $indexCat['idSubCategoria'] = $cl['subcat_id']; 
                 array_push($arrayCategorias,$indexCat);
             }
             array_push($libro['categorias'],$arrayCategorias);

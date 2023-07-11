@@ -56,7 +56,7 @@ class LibrosCategorias extends \yii\db\ActiveRecord
 
     public static function obtenerCategoriasSubCategorias($idLibro)
     {
-        $sql = "SELECT cat_nombre, NVL(subcat_nombre,'') as subcat_nombre
+        $sql = "SELECT cat_nombre, NVL(subcat_nombre,'') as subcat_nombre, cat_id, subcat_id
                 FROM libros_categorias
                     LEFT JOIN categorias ON cat_id = libcat_cat_id
                     LEFT JOIN sub_categorias ON subcat_cat_id = cat_id AND subcat_id = libcat_subcat_id
