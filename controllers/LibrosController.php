@@ -274,17 +274,25 @@ class LibrosController extends \yii\web\Controller
             return json_encode(['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe libro con el isbn especificado']);
         }else{
             $libro['categorias'] = array();
-            $categoriasLibros = LibrosCategorias::obtenerCategoriasSubCategorias($libro['lib_id']);
+            $libro['subCategorias'] = array();
+            $categoriasLibros = LibrosCategorias::obtenerCategorias($libro['lib_id']);
             $arrayCategorias = array();
             foreach($categoriasLibros as $cl)
             {
                 $indexCat = null;
-                $indexCat['categoria'] = $cl['cat_nombre'];
-                $indexCat['subCategoria'] = $cl['subcat_nombre']; 
-                $indexCat['idCategoria'] = $cl['cat_id']; 
-                $indexCat['idSubCategoria'] = $cl['subcat_id']; 
+                $indexCat['nombre'] = $cl['cat_nombre'];
+                $indexCat['id'] = $cl['cat_id']; 
                 array_push($arrayCategorias,$indexCat);
             }
+            $subcategoriasLibros = LibrosCategorias::obtenerSubCategorias($libro['lib_id']);
+            $arraySubCategorias = array();
+            foreach($subcategoriasLibros as $sbcl)
+            {
+                $indexSubCat = null;
+                $indexCat['idSubCategoria'] = $sbcl['subcat_id']; 
+                $indexCat['subCategoria'] = $sbcl['subcat_nombre'];
+                array_push($arraySubCategorias,$indexSubCat);
+            } 
             array_push($libro['categorias'],$arrayCategorias);
         }
 

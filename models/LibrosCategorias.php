@@ -66,4 +66,31 @@ class LibrosCategorias extends \yii\db\ActiveRecord
         return $categorias;
     }
 
+
+    public static function obtenerCategorias($idLibro)
+    {
+        $sql = "SELECT cat_id, cat_nombre
+                FROM libros_categorias
+                    LEFT JOIN categorias ON cat_id = libcat_cat_id
+                WHERE libcat_lib_id = $idLibro
+                GROUP BY 1";
+
+        $categorias = Yii::$app->db->createCommand($sql)->queryAll(); 
+        return $categorias;
+    }
+
+    
+
+    public static function obtenerSubCategorias($idLibro)
+    {
+        $sql = "SELECT subcat_id, subcat_nombre
+                FROM libros_categorias
+                    LEFT JOIN categorias ON cat_id = libcat_cat_id
+                    LEFT JOIN sub_categorias ON subcat_cat_id = cat_id AND subcat_id = libcat_subcat_id
+                WHERE libcat_lib_id = $idLibro AND libcat_subcat_id IS NOT NULL
+                GROUP BY 1";
+
+        $categorias = Yii::$app->db->createCommand($sql)->queryAll(); 
+        return $categorias;
+    }
 }
