@@ -81,7 +81,7 @@ class Reservas extends \yii\db\ActiveRecord
             ->andWhere(['!=', 'resv_estado', 'X'])
             ->andWhere(['!=', 'resv_estado', 'D'])
             ->all()) > 3)
-            $this->addError($attribute, "El usuario especificado tiene 3 reservas ya");
+            $this->addError($attribute, "El usuario especificado tiene 4 reservas ya");
     }
 
     public function reservaIntervalo($attribute, $params)
@@ -151,6 +151,32 @@ class Reservas extends \yii\db\ActiveRecord
         $logAbm = LogAbm::nuevoLog($nombreTabla,2,$modeloViejo,$modeloNuevo,$motivoCancelacion);
         LogAccion::nuevoLog("Cancelar Reserva","Nro Reserva: $idReserva \nMotivo cancelacion:".$motivoCancelacion,$logAbm);
 
+    }
+
+    public function actualizar_en_caso_de_ser_necesario()
+    {
+        $currentDate = new \DateTime();
+
+        $fechaDesdeMas48 = new \DateTime($this->resv_fecha_desde);
+        $fechaDesdeMas48->add(new \DateInterval('PT48H'));
+
+        $fechaHasta = new \DateTime($this->resv_fecha_hasta);
+        if ($currentDate > $fechaHasta)
+        {
+            if ($this->resv_estado == "P" || $this->resv_estado == "C")
+            {
+                $this->resv_estado = 'X';
+                static::cancelarReserva($this->resv_id, "Se cancelo de forma automatica por pasar la fecha limite de la reserva");
+            }
+            elseif ($this->resv_estado == "L")
+                $this->resv_estado = 'N';
+        }
+        elseif ($currentDate > $fechaDesdeMas48 && ($this->resv_estado == "P" || $this->resv_estado == "C"))
+        {
+            $this->resv_estado = 'X';
+            static::cancelarReserva($this->resv_id, "Se cancelo de forma automatica por pasar la fecha para levantar el libro");
+        }
+        $this->save();
     }
 
     public static function getNombreUsuID()

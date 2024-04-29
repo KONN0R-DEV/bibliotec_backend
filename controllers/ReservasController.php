@@ -23,8 +23,30 @@ class ReservasController extends \yii\rest\ActiveController
             throw new ForbiddenHttpException("No se puede eliminar reserva");
         if (in_array($action->id, ['create', 'update', 'delete']))
         {
-            if (isset($this->request->bodyParams['resv_estado']) and !Usuarios::checkIfAdmin($this->request, $this->modelClass))
-                throw new ForbiddenHttpException("Solo un administrador puede cambiar el estado de una reserva");
+            if (!Usuarios::checkIfAdmin($this->request, $this->modelClass))
+            {
+                if (isset($this->request->bodyParams['resv_estado']))
+                {
+                    if ($action->id == 'create')
+                        throw new ForbiddenHttpException("Al crear una reserva no se puede especificar el estado (como estudiante)");
+                    $reserva = Reservas::findOne(['resv_id' => (int)$_GET['id']]);
+                    if ($reserva == null)
+                        return false;
+                    $currentDate = new \DateTime();
+                    $fechaDesdeMas48 = new \DateTime($reserva->resv_fecha_desde);
+                    $fechaDesdeMas48->add(new \DateInterval('PT48H'));
+
+                    if ($currentDate > $fechaDesdeMas48 || ($reserva->resv_estado != "P" && $reserva->resv_estado != "C") || ($this->request->bodyParams['resv_estado'] != 'L' && $this->request->bodyParams['resv_estado'] != 'X'))
+                        throw new ForbiddenHttpException("Solo un administrador puede cambiar el estado de una reserva (a menos que se quiera levantar una reserva)");
+                }
+                if ($action->id == 'update')
+                {
+                    if (isset($this->request->bodyParams['resv_fecha_desde']))
+                        throw new ForbiddenHttpException("Solo un administrador puede cambiar la fecha de inicio de una reserva");
+                    if (isset($this->request->bodyParams['resv_fecha_hasta']))
+                        throw new ForbiddenHttpException("Solo un administrador puede cambiar la fecha_hasta de una reserva");
+                }
+            }
             if ($action->id == 'create' && Usuarios::checkPostAuth($this->request, $this->modelClass))
             {
                 return true;
@@ -40,8 +62,12 @@ class ReservasController extends \yii\rest\ActiveController
 
     public function actionMisReservas()
     {
-        $token = $_GET['token'];
-        $verificacionToken = Tokens::verificarToken($token);
+        $verificacionToken = 'NE';
+        if (isset($this->request->headers['Authorization']))
+        {
+            $token = explode(' ', $this->request->headers['Authorization'])[1];
+            $verificacionToken = Tokens::verificarToken($token);
+        }
         
         $respuesta = array("code"=>102,"msg"=>"Error a la hora de obtener las reservas");
 
@@ -49,6 +75,7 @@ class ReservasController extends \yii\rest\ActiveController
         {
             $idUsuario = $verificacionToken;
             $misReservas = Reservas::obtenerReservas($idUsuario);
+            static::actualizar_reservas_en_caso_de_ser_necesario($misReservas);
             $misReservas = ReservasController::generarEstructuraReservas($misReservas);
             $respuesta = array("code"=>0,"msg"=>"Reservas obtenidas correctamente","datos"=>array('reservas'=>$misReservas));
         }else{
@@ -147,6 +174,7 @@ class ReservasController extends \yii\rest\ActiveController
             return ['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'id de usuario es necesaria'];
         $id = $_GET['id'];
         $reservas = Reservas::findAll(['resv_usu_id' => $id]);
+        static::actualizar_reservas_en_caso_de_ser_necesario($reservas);
         if (count($reservas) == 0)
             return ['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe reserva para el id especificado'];
         
@@ -180,7 +208,8 @@ class ReservasController extends \yii\rest\ActiveController
         if (!isset($_GET['id']))
             return ['error' => true, 'error_tipo' => 1, 'error_mensaje' => 'id del libro es necesario'];
         $id = $_GET['id'];
-        $reservas = Reservas::findAll(['resv_lib_id' => $id]);        
+        $reservas = Reservas::findAll(['resv_lib_id' => $id]);    
+        static::actualizar_reservas_en_caso_de_ser_necesario($reservas);    
 
         // Recorrer las reservas y Agregarle el isbn
         $array = array();
@@ -193,7 +222,7 @@ class ReservasController extends \yii\rest\ActiveController
             array_push($array,$index);
         }
 
-        return ['error' => false, 'reserva' => $array];
+        return ['error' => false, 'reserva' => $array, 'lib_stock' => Libros::findOne(['lib_id' => $id])->lib_stock];
     }
 
 
@@ -207,6 +236,7 @@ class ReservasController extends \yii\rest\ActiveController
                 ];
             }
             $reservas = Reservas::find()->all();
+            static::actualizar_reservas_en_caso_de_ser_necesario($reservas);
 
             $arrayReservas = array();
             foreach($reservas as $reserva){
@@ -236,6 +266,12 @@ class ReservasController extends \yii\rest\ActiveController
                 "codigo" => 5
             ];
         }
+    }
+
+    // toma modelos de reservas y los actualiza (y los guarda) en caso de que hayan pasado la fecha de vencimiento
+    public static function actualizar_reservas_en_caso_de_ser_necesario($reservas) {
+        foreach($reservas as $reserva)
+            $reserva->actualizar_en_caso_de_ser_necesario();
     }
 }
 

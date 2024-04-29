@@ -222,9 +222,13 @@ class LibrosController extends \yii\web\Controller
 
     public function actionObtenerTodosLibros()
     {
-       
-        $token = $_GET['token'];
-        $verificacionToken = Tokens::verificarToken($token);
+        $verificacionToken = 'NE';
+        if (isset($this->request->headers['Authorization']))
+        {
+            $token = explode(' ', $this->request->headers['Authorization'])[1];
+            $verificacionToken = Tokens::verificarToken($token);
+        }
+        
         if(is_numeric($verificacionToken))
         {
             $idUsuario = $verificacionToken;
@@ -250,7 +254,7 @@ class LibrosController extends \yii\web\Controller
                 break;
             }
         }
-        return $respuesta;
+        return json_encode($respuesta);
     }
 
     public function actionObtenerLibro()
@@ -263,9 +267,37 @@ class LibrosController extends \yii\web\Controller
         $sql = "SELECT *
                 FROM libros
                 WHERE lib_isbn = $isbn";
-        $libro = \Yii::$app->db->createCommand($sql)->queryOne();  
+        $libro = \Yii::$app->db->createCommand($sql)->queryOne();          
+        
         if ($libro == null)
+        {
             return json_encode(['error' => true, 'error_tipo' => 2, 'error_mensaje' => 'no existe libro con el isbn especificado']);
+        }else{
+            $libro['categorias'] = array();
+            $libro['subCategorias'] = array();
+            $categoriasLibros = LibrosCategorias::obtenerCategorias($libro['lib_id']);
+            $arrayCategorias = array();
+            foreach($categoriasLibros as $cl)
+            {
+                $indexCat = null;
+                $indexCat['nombre'] = $cl['cat_nombre'];
+                $indexCat['id'] = $cl['cat_id']; 
+                array_push($arrayCategorias,$indexCat);
+            }
+            $subcategoriasLibros = LibrosCategorias::obtenerSubCategorias($libro['lib_id']);
+            $arraySubCategorias = array();
+            foreach($subcategoriasLibros as $sbcl)
+            {
+                $indexSubCat = null;
+                $indexCat['id'] = $sbcl['subcat_id']; 
+                $indexCat['nombre'] = $sbcl['subcat_nombre'];
+                array_push($arraySubCategorias,$indexSubCat);
+            } 
+            array_push($libro['subCategorias'],$arrayCategorias);
+
+            array_push($libro['categorias'],$arrayCategorias);
+        }
+
         
         return json_encode(["error" => false, "libro" => $libro]);
     }

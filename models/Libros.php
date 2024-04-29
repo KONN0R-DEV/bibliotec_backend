@@ -175,4 +175,21 @@ class Libros extends \yii\db\ActiveRecord
         $libros = Yii::$app->db->createCommand($sql)->queryAll();  
         return $libros;
     }
+
+    public static function obtenerCantidadDisponible() {
+        /** LIBRO STOCK - RESERVAS CONFIRMADA EN EL MOMENTO */
+        $sql = "SELECT lib_titulo,
+                        lib_stock - (
+                            select NVL(count(*),0)
+                            from reservas
+                            where resv_estado = 'C'
+                                AND resv_lib_id = lib_id
+                        ) as stock_actual
+                FROM libros
+                WHERE lib_vigente='S'";
+        $libros = Yii::$app->db->createCommand($sql)->queryAll();  
+        return $libros;
+    }
+
+    
 }

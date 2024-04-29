@@ -29,6 +29,9 @@ class FavoritosController extends \yii\rest\ActiveController
                 return true;
             throw new ForbiddenHttpException("Bearer token no es valido o no existe administrador con ese token [puede ser que no se haya especificado el id de ".$this->modelClass."]");
         }
+        if ($action->id == 'quitar')
+            return true;
+
         return true;
     }
 
@@ -60,9 +63,9 @@ class FavoritosController extends \yii\rest\ActiveController
     {
         //header('Access-Control-Allow-Origin: *');
         //header("Content-type: application/json; charset=utf-8");
-        if(isset($_GET['token']) && !empty($_GET['token']))
+        if(isset($this->request->headers['Authorization']) && !empty($this->request->headers['Authorization']))
         {
-            $tokenUsuario = $_GET['token'];
+            $tokenUsuario = explode(' ', $this->request->headers['Authorization'])[1];
             $verificacionToken = Tokens::verificarToken($tokenUsuario);
             if(is_numeric($verificacionToken))
             {
@@ -86,6 +89,36 @@ class FavoritosController extends \yii\rest\ActiveController
             return array("code"=>100,"msg"=>"El token es obligatorio");
         }
     }
+
+    public function actionQuitar()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            
+            $usu_id = Usuarios::findIdentityByAccessToken(Usuarios::getTokenFromHeaders($this->request->headers))->usu_id;
+
+            $lib_id = $this->request->queryParams['id'];
+        
+            if (!isset($lib_id) || empty($lib_id))
+                return array("codigo" => 2, 'mensaje' => 'id es obligatorio');
+                       
+            $favorito = Favoritos::findOne(['fav_usu_id' => $usu_id, 'fav_lib_id' => $lib_id]);
+            if ($favorito == null)
+                return array("codigo" => 3, 'mensaje' => 'No se encontró el favorito');
+        
+            $favoritoViejo = null;
+            $favoritoViejo = json_encode($favorito->attributes);
+            $id_aux = $favorito->fav_id;
+            $favorito->delete();
+        
+            $id_logAbm = LogAbm::nuevoLog(Favoritos::tableName(), 3, $favoritoViejo, null, "Eliminado favorito", $usu_id);
+            LogAccion::nuevoLog("Eliminado favorito", "Eliminado favorito con id=" . $id_aux, $id_logAbm);
+            return array("codigo" => 4, 'mensaje' => 'Se eliminó con éxito');
+        }else{
+            return array("codigo" => 5, 'mensaje' => 'Metodo http incorrecto');
+        }
+    }
+    
+    
 
 
 }   
